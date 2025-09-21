@@ -3,11 +3,11 @@ FROM python:3.10
 
 # Instalar las dependencias del sistema operativo necesarias para CadQuery
 # - build-essential: Para compilar paquetes.
-# - libgl1-mesa-glx: Librería de OpenGL para renderizado (aunque no rendericemos visualmente, a veces es necesaria).
+# - libgl1: Librería de OpenGL para renderizado.
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libgl1-mesa-glx \
-    && apt-get clean
+    libgl1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Establecer el directorio de trabajo
 WORKDIR /app
