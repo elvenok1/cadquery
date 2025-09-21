@@ -23,5 +23,5 @@ COPY . .
 EXPOSE 80
 
 # --- LÍNEA MODIFICADA ---
-# Comando para ejecutar la aplicación con Gunicorn cuando el contenedor inicie
-CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "3", "app:app"]
+# Comando para ejecutar la aplicación con Gunicorn, AUMENTANDO EL TIMEOUT
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "3", "--timeout", "120", "app:app"]
