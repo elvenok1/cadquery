@@ -6,6 +6,15 @@ import os
 # Inicializar la aplicación Flask
 app = Flask(__name__)
 
+# --- ENDPOINT PARA HEALTH CHECK ---
+# Responde a los chequeos de salud de Easypanel para que el servicio se mantenga activo.
+@app.route('/', methods=['GET'])
+def health_check():
+    """
+    Responde a los chequeos de salud de la plataforma de despliegue.
+    """
+    return "CadQuery Service is running.", 200
+
 # --- Endpoint para GENERAR una nueva pieza desde código Python ---
 @app.route('/generate', methods=['POST'])
 def generate_model():
@@ -51,6 +60,10 @@ def generate_model():
 
     except Exception as e:
         return jsonify({"error": f"Error al ejecutar el script de CadQuery: {str(e)}"}), 500
+    finally:
+        # Asegurarse de que el archivo temporal se elimine después de enviarlo
+        if 'file_path' in locals() and os.path.exists(file_path):
+            os.remove(file_path)
 
 # --- Endpoint para MODIFICAR un archivo .STEP existente ---
 @app.route('/modify', methods=['POST'])
@@ -67,6 +80,8 @@ def modify_model():
 
     step_file = request.files['step_file']
     script_code = request.form['script']
+    input_path = None
+    output_path = None
 
     try:
         # Guardar el STEP recibido en un archivo temporal
@@ -97,9 +112,6 @@ def modify_model():
             output_path = temp_output_file.name
             cq.exporters.export(result_solid, output_path)
 
-        # Limpiar el archivo de entrada
-        os.remove(input_path)
-        
         # Devolver el nuevo archivo
         return send_file(
             output_path,
@@ -110,7 +122,9 @@ def modify_model():
 
     except Exception as e:
         return jsonify({"error": f"Error al modificar el modelo: {str(e)}"}), 500
-
-# Iniciar el servidor
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=80)
+    finally:
+        # Limpiar ambos archivos temporales
+        if input_path and os.path.exists(input_path):
+            os.remove(input_path)
+        if output_path and os.path.exists(output_path):
+            os.remove(output_path)
