@@ -22,5 +22,6 @@ COPY . .
 # Exponer el puerto
 EXPOSE 80
 
-# Comando para ejecutar la aplicación
-CMD ["python", "app.py"]
+# --- LÍNEA MODIFICADA ---
+# Comando para ejecutar la aplicación con Gunicorn cuando el contenedor inicie
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "3", "app:app"]
