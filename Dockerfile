@@ -1,19 +1,26 @@
-# Usar una imagen base oficial de Python
-FROM python3.10-slim
+# Usar una imagen base oficial de Python (la versión completa, no la slim)
+FROM python:3.10
 
-# Establecer el directorio de trabajo dentro del contenedor
-WORKDIR app
+# Instalar las dependencias del sistema operativo necesarias para CadQuery
+# - build-essential: Para compilar paquetes.
+# - libgl1-mesa-glx: Librería de OpenGL para renderizado (aunque no rendericemos visualmente, a veces es necesaria).
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libgl1-mesa-glx \
+    && apt-get clean
 
-# Copiar el archivo de dependencias y luego instalarlas
-# Esto aprovecha el cache de Docker para no reinstalar si no cambian
+# Establecer el directorio de trabajo
+WORKDIR /app
+
+# Copiar el archivo de dependencias e instalarlas
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar el resto del código de la aplicación
 COPY . .
 
-# Exponer el puerto en el que la aplicación Flask se ejecutará
+# Exponer el puerto
 EXPOSE 80
 
-# Comando para ejecutar la aplicación cuando el contenedor inicie
-CMD [python, app.py]
+# Comando para ejecutar la aplicación
+CMD ["python", "app.py"]
