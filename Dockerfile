@@ -24,4 +24,5 @@ EXPOSE 80
 
 # --- LÍNEA MODIFICADA ---
 # Comando para ejecutar la aplicación con Gunicorn, AUMENTANDO EL TIMEOUT
-CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "3", "--timeout", "120", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "1", "--timeout", "120", "app:app"]
+
