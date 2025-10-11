@@ -203,49 +203,27 @@ class Worm(GearBase):
         return g_faces
 
 
-     def _build(self, bore_d=None, handedness='right', **kwargs):
-        '''
-        Builds the Worm geometry using a robust helical sweep and cut method.
-        Uses a polyline profile to prevent geometry construction errors.
-        '''
-        # 1. Calcular los parámetros de la hélice
-        helix_radius = self.r0
-        height = self.length
-        pitch = np.pi * (self.r0 * 2.0) / np.tan(self.lead_angle)
+    def _make_bore(self, body, bore_d):
+        if bore_d is None:
+            return body
 
-        if handedness.lower() == 'left':
-            pitch = -pitch
-
-        # 2. Crear el cilindro base del tornillo
-        body = cq.Workplane("XY").cylinder(height, self.ra)
-
-        # 3. Crear el perfil de corte 2D
-        t_pts = [ (p[0], p[1]) for p in self.tooth_points() ]
-        
-        # El perfil se dibuja en el plano XZ, offseteado al radio correcto
-        profile = (cq.Workplane("XZ")
-                   .workplane(offset=helix_radius)
-                   .moveTo(t_pts[0][0], t_pts[0][1])
-                   .polyline(t_pts[1:]) # <-- CAMBIO CLAVE: De .spline a .polyline
-                   .close()
-                  )
-        
-        # 4. Crear la herramienta de corte y realizar el corte para cada hilo
-        for i in range(self.n_threads):
-            rotation_angle = (360.0 / self.n_threads) * i
-            
-            rotated_profile = profile.rotate((0,0,0), (0,1,0), rotation_angle)
-            
-            # Creamos la HERRAMIENTA como un sólido independiente
-            cutting_tool = (rotated_profile.sweep(cq.Wire.makeHelix(pitch, height, helix_radius),
-                                                 makeSolid=True,
-                                                 isFrenet=True))
-            
-            # Realizamos la operación booleana de CORTE
-            body = body.cut(cutting_tool)
-
-        # 5. Añadir el agujero central
-        if bore_d and bore_d > 0:
-            body = body.faces(">Z").workplane().circle(bore_d / 2.0).cutThruAll()
+        body = (cq.Workplane('YZ')
+                .add(body)
+                .faces('<X')
+                .workplane()
+                .circle(bore_d / 2.0)
+                .cutThruAll())
         
         return body.val()
+
+
+    def _build(self, bore_d=None):
+        faces = self._build_gear_faces()
+
+        shell = make_shell(faces, tol=self.shell_sewing_tol)
+        body = cq.Solid.makeSolid(shell)
+
+        body = self._make_bore(body, bore_d)
+
+        return body
+
