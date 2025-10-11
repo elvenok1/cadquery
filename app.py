@@ -3,15 +3,33 @@ from flask import Flask, request, send_file, jsonify
 import tempfile
 import os
 from collections import Counter
-
-from cq_gears.spur_gear import SpurGear
 import cqkit
 
+# --- IMPORTACIONES COMPLETAS DE CQ_GEARS ---
+# Asegúrate de que los nombres de las clases coincidan con los de los archivos.
+# Por ejemplo, en bevel_gear.py la clase se llama BevelGear.
+from cq_gears.spur_gear import SpurGear
+from cq_gears.bevel_gear import BevelGear
+from cq_gears.crossed_helical_gear import CrossedHelicalGear
+from cq_gears.rack_gear import RackGear
+from cq_gears.ring_gear import RingGear
+from cq_gears.worm_gear import Worm, WormGear
+
+# --- DICCIONARIO DE EJECUCIÓN ACTUALIZADO ---
+# Añade todas las clases de engranes importadas para que esten 
+# disponibles en los scripts que se ejecutan en el endpoint /generate
 CQ_EXEC_SCOPE = {
     "cq": cq,
     "cqkit": cqkit,
     "SpurGear": SpurGear,
+    "BevelGear": BevelGear,
+    "CrossedHelicalGear": CrossedHelicalGear,
+    "RackGear": RackGear,
+    "RingGear": RingGear,
+    "Worm": Worm,
+    "WormGear": WormGear,
 }
+
 # Inicializar la aplicación Flask
 app = Flask(__name__)
 
@@ -153,6 +171,7 @@ def modify_model():
             os.remove(input_path)
         if output_path and os.path.exists(output_path):
             os.remove(output_path)
+
 
 
 
