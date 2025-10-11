@@ -203,60 +203,49 @@ class Worm(GearBase):
         return g_faces
 
 
-    def _build(self, bore_d=None, handedness='right'):
+    def _build(self, bore_d=None, handedness='right', **kwargs):
         '''
-        Builds the Worm geometry using a robust helical sweep method.
+        Builds the Worm geometry using a robust helical sweep and cut method.
         '''
         # 1. Calcular los parámetros de la hélice
-        # El radio donde se realiza el barrido es el radio de paso.
         helix_radius = self.r0
-        
-        # La "altura" del barrido es la longitud del tornillo.
         height = self.length
-
-        # El "paso" de la hélice define qué tan rápido sube.
-        # Está directamente relacionado con el ángulo de avance y el diámetro de paso.
         pitch = np.pi * (self.r0 * 2.0) / np.tan(self.lead_angle)
 
-        # La dirección de la hélice determina si es a derechas o izquierdas.
         if handedness.lower() == 'left':
             pitch = -pitch
 
-        # 2. Crear el perfil de corte 2D (la forma del diente del rack)
-        # Usamos los puntos del diente que ya calculamos en __init__
+        # 2. Crear el cilindro base del tornillo
+        body = cq.Workplane("XY").cylinder(height, self.ra)
+
+        # 3. Crear el perfil de corte 2D
         t_pts = [ (p[0], p[1]) for p in self.tooth_points() ]
         
-        # Creamos el perfil como un "alambre" cerrado en el plano XZ
-        # Lo movemos al radio correcto para que corte desde el centro hacia afuera
+        # El perfil se dibuja en el plano XZ, offseteado al radio correcto
         profile = (cq.Workplane("XZ")
                    .workplane(offset=helix_radius)
                    .moveTo(t_pts[0][0], t_pts[0][1])
                    .spline(t_pts[1:])
                    .close()
                   )
-
-        # 3. Crear el cilindro base del tornillo
-        # El radio exterior es el radio del adendo (ra)
-        cylinder = cq.Solid.makeCylinder(self.ra, height)
-        body = cq.Workplane(obj=cylinder)
-
-        # 4. Realizar el barrido helicoidal para cortar los hilos
-        # Repetimos el corte para cada hilo (n_threads)
+        
+        # 4. Crear la herramienta de corte y realizar el corte para cada hilo
         for i in range(self.n_threads):
-            # Rotamos el perfil inicial para espaciar los hilos uniformemente
             rotation_angle = (360.0 / self.n_threads) * i
             
             rotated_profile = profile.rotate((0,0,0), (0,1,0), rotation_angle)
             
-            # Barrido para cortar
-            body = body.sweep(rotated_profile,
-                              path=cq.Wire.makeHelix(pitch, height, helix_radius),
-                              makeSolid=False, # Importante: queremos cortar, no añadir
-                              isFrenet=True)
+            # Creamos la HERRAMIENTA como un sólido independiente
+            cutting_tool = (rotated_profile.sweep(cq.Wire.makeHelix(pitch, height, helix_radius),
+                                                 makeSolid=True,
+                                                 isFrenet=True))
+            
+            # Realizamos la operación booleana de CORTE
+            body = body.cut(cutting_tool)
 
-        # 5. Añadir el agujero central (bore)
+        # 5. Añadir el agujero central
         if bore_d and bore_d > 0:
-            body = body.faces(">Y").workplane().circle(bore_d / 2.0).cutThruAll()
+            body = body.faces(">Z").workplane().circle(bore_d / 2.0).cutThruAll()
         
         return body.val()
 
