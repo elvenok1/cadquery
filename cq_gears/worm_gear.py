@@ -203,9 +203,10 @@ class Worm(GearBase):
         return g_faces
 
 
-    def _build(self, bore_d=None, handedness='right', **kwargs):
+     def _build(self, bore_d=None, handedness='right', **kwargs):
         '''
         Builds the Worm geometry using a robust helical sweep and cut method.
+        Uses a polyline profile to prevent geometry construction errors.
         '''
         # 1. Calcular los parámetros de la hélice
         helix_radius = self.r0
@@ -225,7 +226,7 @@ class Worm(GearBase):
         profile = (cq.Workplane("XZ")
                    .workplane(offset=helix_radius)
                    .moveTo(t_pts[0][0], t_pts[0][1])
-                   .spline(t_pts[1:])
+                   .polyline(t_pts[1:]) # <-- CAMBIO CLAVE: De .spline a .polyline
                    .close()
                   )
         
@@ -248,4 +249,3 @@ class Worm(GearBase):
             body = body.faces(">Z").workplane().circle(bore_d / 2.0).cutThruAll()
         
         return body.val()
-
