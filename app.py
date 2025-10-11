@@ -5,17 +5,12 @@ import os
 from collections import Counter
 
 from cq_gears.spur_gear import SpurGear
-from cq_gears.helical_gear import HelicalGear
-from cq_gears.bevel_gear import BevelGear
 import cqkit
 
-# Opcional: define un EXEC_SCOPE global para scripts si quieres exponer los módulos a tus endpoints dinámicos:
 CQ_EXEC_SCOPE = {
     "cq": cq,
     "cqkit": cqkit,
     "SpurGear": SpurGear,
-    "HelicalGear": HelicalGear,
-    "BevelGear": BevelGear,
 }
 # Inicializar la aplicación Flask
 app = Flask(__name__)
@@ -158,5 +153,6 @@ def modify_model():
             os.remove(input_path)
         if output_path and os.path.exists(output_path):
             os.remove(output_path)
+
 
 
