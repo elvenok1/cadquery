@@ -4,24 +4,23 @@ import tempfile
 import os
 from collections import Counter
 
-# --- NUEVOS IMPORTS ---
-# Importa las clases y módulos que quieres exponer a los scripts de los usuarios.
-from cq_gears import SpurGear, HelicalGear, BevelGear # Importamos algunos tipos de engranajes
+# --- NUEVOS IMPORTS CORREGIDOS ---
+# Importa las clases desde sus módulos específicos dentro de cq_gears
+from cq_gears.spur_gear import SpurGear
+from cq_gears.helical_gear import HelicalGear
+from cq_gears.bevel_gear import BevelGear
 import cqkit
 
 # Inicializar la aplicación Flask
 app = Flask(__name__)
 
-# --- NUEVO: ÁMBITO GLOBAL PARA SCRIPTS ---
-# Define un diccionario que contiene todos los módulos y clases que estarán disponibles
-# en los scripts de los usuarios. Esto evita tener que modificar cada endpoint por separado.
+# --- ÁMBITO GLOBAL PARA SCRIPTS (SIN CAMBIOS, PERO AHORA FUNCIONARÁ) ---
 CQ_EXEC_SCOPE = {
     "cq": cq,
     "cqkit": cqkit,
     "SpurGear": SpurGear,
     "HelicalGear": HelicalGear,
     "BevelGear": BevelGear,
-    # Puedes añadir más clases o funciones de cq_gears o cqkit aquí si lo necesitas
 }
 
 
@@ -98,7 +97,7 @@ def analyze_model():
             os.remove(input_path)
 
 
-# --- Endpoint para GENERAR una nueva pieza (MODIFICADO) ---
+# --- Endpoint para GENERAR una nueva pieza (sin cambios en la lógica) ---
 @app.route('/generate', methods=['POST'])
 def generate_model():
     data = request.get_json()
@@ -108,15 +107,12 @@ def generate_model():
     file_path = None
     try:
         local_scope = {}
-        # --- LÍNEA MODIFICADA ---
-        # Pasamos el diccionario CQ_EXEC_SCOPE como el ámbito global para exec().
         exec(script_code, CQ_EXEC_SCOPE, local_scope)
         
         result_solid = None
-        # El script debe asignar el resultado a una variable (p. ej., 'result')
         if 'result' in local_scope:
             result_solid = local_scope['result']
-        else: # Fallback por si el script solo devuelve un objeto sin asignarlo
+        else:
             for val in local_scope.values():
                 if isinstance(val, (cq.Workplane, cq.Shape)):
                     result_solid = val
@@ -136,7 +132,7 @@ def generate_model():
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
 
-# --- Endpoint para MODIFICAR un archivo .STEP (MODIFICADO) ---
+# --- Endpoint para MODIFICAR un archivo .STEP (sin cambios en la lógica) ---
 @app.route('/modify', methods=['POST'])
 def modify_model():
     if 'step_file' not in request.files:
@@ -154,12 +150,7 @@ def modify_model():
             input_path = temp_input_file.name
             
         imported_wp = cq.importers.importStep(input_path)
-        
-        # El modelo importado se llama 'model' dentro del script
         local_scope = {'model': imported_wp}
-        
-        # --- LÍNEA MODIFICADA ---
-        # Usamos el mismo CQ_EXEC_SCOPE aquí también
         exec(script_code, CQ_EXEC_SCOPE, local_scope)
         
         result_solid = None
