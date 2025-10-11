@@ -118,20 +118,27 @@ def generate_model():
     file_path = None
     try:
         local_scope = {}
-        exec(script_code, {"cq": cq}, local_scope)
+        # ¡LÍNEA CORREGIDA! Ahora usamos el diccionario CQ_EXEC_SCOPE
+        exec(script_code, CQ_EXEC_SCOPE, local_scope)
+
         result_solid = None
+        # Buscamos en el 'local_scope' el resultado que ha dejado el script
         for val in local_scope.values():
             if isinstance(val, (cq.Workplane, cq.Shape)):
                 result_solid = val
                 break
+        
         if result_solid is None:
             return jsonify({"error": "No se encontró un objeto 'Workplane' o 'Shape' de CadQuery en el resultado del script."}), 400
+        
         with tempfile.NamedTemporaryFile(suffix=".step", delete=False) as temp_file:
             file_path = temp_file.name
             cq.exporters.export(result_solid, file_path)
+            
         return send_file(file_path, as_attachment=True, download_name='generated_model.step', mimetype='application/octet-stream')
     except Exception as e:
-        return jsonify({"error": f"Error al ejecutar el script de CadQuery: {str(e)}"}), 500
+        # Usamos repr(e) para obtener un error más detallado si es necesario
+        return jsonify({"error": f"Error al ejecutar el script de CadQuery: {repr(e)}"}), 500
     finally:
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
@@ -171,6 +178,7 @@ def modify_model():
             os.remove(input_path)
         if output_path and os.path.exists(output_path):
             os.remove(output_path)
+
 
 
 
