@@ -13,7 +13,7 @@ from cq_gears.bevel_gear import BevelGear
 from cq_gears.crossed_helical_gear import CrossedHelicalGear
 from cq_gears.rack_gear import RackGear
 from cq_gears.ring_gear import RingGear
-from cq_gears.worm_gear import Worm, WormGear
+from cq_gears.worm_gear import Worm
 
 # --- DICCIONARIO DE EJECUCIÓN ACTUALIZADO ---
 # Añade todas las clases de engranes importadas para que esten 
@@ -171,6 +171,7 @@ def modify_model():
             os.remove(input_path)
         if output_path and os.path.exists(output_path):
             os.remove(output_path)
+
 
 
 
