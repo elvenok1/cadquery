@@ -27,7 +27,7 @@ CQ_EXEC_SCOPE = {
     "RackGear": RackGear,
     "RingGear": RingGear,
     "Worm": Worm,
-    "WormGear": WormGear,
+    "WormGear": Worm,
 }
 
 # Inicializar la aplicación Flask
@@ -171,6 +171,7 @@ def modify_model():
             os.remove(input_path)
         if output_path and os.path.exists(output_path):
             os.remove(output_path)
+
 
 
 
