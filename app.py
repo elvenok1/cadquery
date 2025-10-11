@@ -4,8 +4,26 @@ import tempfile
 import os
 from collections import Counter
 
+# --- NUEVOS IMPORTS ---
+# Importa las clases y módulos que quieres exponer a los scripts de los usuarios.
+from cq_gears import SpurGear, HelicalGear, BevelGear # Importamos algunos tipos de engranajes
+import cqkit
+
 # Inicializar la aplicación Flask
 app = Flask(__name__)
+
+# --- NUEVO: ÁMBITO GLOBAL PARA SCRIPTS ---
+# Define un diccionario que contiene todos los módulos y clases que estarán disponibles
+# en los scripts de los usuarios. Esto evita tener que modificar cada endpoint por separado.
+CQ_EXEC_SCOPE = {
+    "cq": cq,
+    "cqkit": cqkit,
+    "SpurGear": SpurGear,
+    "HelicalGear": HelicalGear,
+    "BevelGear": BevelGear,
+    # Puedes añadir más clases o funciones de cq_gears o cqkit aquí si lo necesitas
+}
+
 
 # --- ENDPOINT PARA HEALTH CHECK ---
 @app.route('/', methods=['GET'])
@@ -13,7 +31,7 @@ def health_check():
     """Responde a los chequeos de salud de la plataforma de despliegue."""
     return "CadQuery Service is running.", 200
 
-# --- ENDPOINT PARA ANALIZAR UN ARCHIVO .STEP ---
+# --- ENDPOINT PARA ANALIZAR UN ARCHIVO .STEP (sin cambios) ---
 @app.route('/analyze', methods=['POST'])
 def analyze_model():
     """
@@ -30,8 +48,6 @@ def analyze_model():
             step_file.save(temp_input_file.name)
             input_path = temp_input_file.name
 
-        # --- LÍNEA CORREGIDA ---
-        # importStep devuelve un Workplane. Usamos .solids().vals() para extraer los objetos Shape.
         imported_wp = cq.importers.importStep(input_path)
         solids = imported_wp.solids().vals()
         
@@ -82,7 +98,7 @@ def analyze_model():
             os.remove(input_path)
 
 
-# --- Endpoint para GENERAR una nueva pieza desde código Python ---
+# --- Endpoint para GENERAR una nueva pieza (MODIFICADO) ---
 @app.route('/generate', methods=['POST'])
 def generate_model():
     data = request.get_json()
@@ -92,17 +108,27 @@ def generate_model():
     file_path = None
     try:
         local_scope = {}
-        exec(script_code, {"cq": cq}, local_scope)
+        # --- LÍNEA MODIFICADA ---
+        # Pasamos el diccionario CQ_EXEC_SCOPE como el ámbito global para exec().
+        exec(script_code, CQ_EXEC_SCOPE, local_scope)
+        
         result_solid = None
-        for val in local_scope.values():
-            if isinstance(val, (cq.Workplane, cq.Shape)):
-                result_solid = val
-                break
+        # El script debe asignar el resultado a una variable (p. ej., 'result')
+        if 'result' in local_scope:
+            result_solid = local_scope['result']
+        else: # Fallback por si el script solo devuelve un objeto sin asignarlo
+            for val in local_scope.values():
+                if isinstance(val, (cq.Workplane, cq.Shape)):
+                    result_solid = val
+                    break
+        
         if result_solid is None:
-            return jsonify({"error": "No se encontró un objeto 'Workplane' o 'Shape' de CadQuery en el resultado del script."}), 400
+            return jsonify({"error": "No se encontró un objeto 'Workplane' o 'Shape' en la variable 'result' del script."}), 400
+        
         with tempfile.NamedTemporaryFile(suffix=".step", delete=False) as temp_file:
             file_path = temp_file.name
             cq.exporters.export(result_solid, file_path)
+            
         return send_file(file_path, as_attachment=True, download_name='generated_model.step', mimetype='application/octet-stream')
     except Exception as e:
         return jsonify({"error": f"Error al ejecutar el script de CadQuery: {str(e)}"}), 500
@@ -110,33 +136,48 @@ def generate_model():
         if file_path and os.path.exists(file_path):
             os.remove(file_path)
 
-# --- Endpoint para MODIFICAR un archivo .STEP existente ---
+# --- Endpoint para MODIFICAR un archivo .STEP (MODIFICADO) ---
 @app.route('/modify', methods=['POST'])
 def modify_model():
     if 'step_file' not in request.files:
         return jsonify({"error": "No se encontró el archivo 'step_file' en la petición."}), 400
     if 'script' not in request.form:
         return jsonify({"error": "No se encontró el 'script' de modificación en el formulario."}), 400
+    
     step_file = request.files['step_file']
     script_code = request.form['script']
     input_path, output_path = None, None
+    
     try:
         with tempfile.NamedTemporaryFile(suffix=".step", delete=False) as temp_input_file:
             step_file.save(temp_input_file.name)
             input_path = temp_input_file.name
+            
         imported_wp = cq.importers.importStep(input_path)
+        
+        # El modelo importado se llama 'model' dentro del script
         local_scope = {'model': imported_wp}
-        exec(script_code, {"cq": cq}, local_scope)
+        
+        # --- LÍNEA MODIFICADA ---
+        # Usamos el mismo CQ_EXEC_SCOPE aquí también
+        exec(script_code, CQ_EXEC_SCOPE, local_scope)
+        
         result_solid = None
-        for val in local_scope.values():
-            if isinstance(val, (cq.Workplane, cq.Shape)):
-                result_solid = val
-                break
+        if 'result' in local_scope:
+            result_solid = local_scope['result']
+        else:
+             for val in local_scope.values():
+                if isinstance(val, (cq.Workplane, cq.Shape)) and val is not imported_wp:
+                    result_solid = val
+                    break
+
         if result_solid is None:
-            return jsonify({"error": "No se encontró un objeto resultante en el script de modificación."}), 400
+            return jsonify({"error": "No se encontró un objeto resultante en la variable 'result' del script de modificación."}), 400
+        
         with tempfile.NamedTemporaryFile(suffix=".step", delete=False) as temp_output_file:
             output_path = temp_output_file.name
             cq.exporters.export(result_solid, output_path)
+            
         return send_file(output_path, as_attachment=True, download_name='modified_model.step', mimetype='application/octet-stream')
     except Exception as e:
         return jsonify({"error": f"Error al modificar el modelo: {str(e)}"}), 500
